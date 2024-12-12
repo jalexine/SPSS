@@ -152,47 +152,34 @@ def generate_spss(kmers, k, mode='simplitig'):
         simplitigs = generate_unitigs(kmers)
     return "#".join(simplitigs) + "$"
 
-def save_fm_index(fm_index, fasta_file, mode, output_file=None):
+def prepare_output_dir(base_name, mode, k, t, extension="dump", parent_dir="benchmark"):
+    """
+    Prepare directory for outputs
+    """
+    output_dir = os.path.abspath(os.path.join(parent_dir, base_name))
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    file_name = f"fmi_{base_name}_{mode}_k{k}_t{t}.{extension}"
+    return os.path.join(output_dir, file_name)
+
+
+def save_fm_index(fm_index, fasta_file, mode, k, t, output_file=None):
     """
     Serializes and saves the FM-index to a file. Automatically creates folders if needed.
-
-    Args:
-        fm_index (FmIndex): The FM-index to save.
-        fasta_file (str): The path to the FASTA file.
-        mode (str): The mode used for SPSS construction ('simplitig' or 'unitig').
-        output_file (str, optional): The path to save the FM-index. If not provided, a default file name is generated.
-
-    Returns:
-        str: The path where the FM-index was saved.
     """
-    parent_dir = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
-
-    # Dynamically generate the subfolder name based on the FASTA file name
     base_name = os.path.splitext(os.path.basename(fasta_file))[0]
-    fasta_folder = f"{base_name}_reads"  # Customize this as needed
 
-    # Create the folder "benchmark/<dynamic_folder_name>" if it doesn't exist
-    reads_folder = os.path.join(parent_dir, 'benchmark', fasta_folder)
-    if not os.path.exists(reads_folder):
-        os.makedirs(reads_folder)
+    if not output_file or os.path.isdir(output_file):
+        output_file = prepare_output_dir(base_name, mode, k, t, extension="dump")
 
-    # If no output file is provided, generate the default name
-    if not output_file:
-        output_file = os.path.join(reads_folder, f"{base_name}_{mode}_{k}_{threshold}.dump")
-    
-    # If output_file is a relative path, prepend it with the benchmark folder
-    elif os.path.isabs(output_file): 
-        pass
-    else:
-        output_file = os.path.join(reads_folder, output_file)
-
-    # Save the FM-index to the generated file path
     try:
         with open(output_file, 'wb') as f:
             pickle.dump(fm_index, f)
         print(f"FM-index saved to {output_file}")
     except Exception as e:
-        print(f"Error saving FM-index: {e}") 
+        print(f"Error saving FM-index: {e}")
+
     return output_file
 
 
@@ -200,30 +187,43 @@ def save_fm_index(fm_index, fasta_file, mode, output_file=None):
 
 def save_benchmark_results(fasta_file, mode, stats):
     """
-    Saves benchmark results to a CSV file and prints them to the console.
-
-    Args:
-        fasta_file (str): The input FASTA file.
-        mode (str): The mode used for SPSS construction ('simplitig' or 'unitig').
-        stats (dict): A dictionary containing benchmarking statistics.
-
-    Returns:
-        None
+    Saves benchmark results to a CSV file in the stats directory and prints them in their original format.
     """
-    parent_dir = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
     base_name = os.path.splitext(os.path.basename(fasta_file))[0]
+    parent_dir = os.path.abspath("benchmark/stats")  # Répertoire unique pour les stats
 
-    csv_file_name = os.path.join(parent_dir, 'benchmark', f"stats_{base_name}.{mode}.csv")
+    if not os.path.exists(parent_dir):
+        os.makedirs(parent_dir)  # Crée le dossier "stats" s'il n'existe pas
 
+    # Nom du fichier CSV basé uniquement sur le mode et le dataset
+    csv_file_name = os.path.join(parent_dir, f"stats_{base_name}_{mode}.csv")
+
+    processed_stats = {
+        'Dataset': base_name,
+        'k': k, 
+        't': threshold,
+        'TIME_SELECTING_KMERS (sec)': float(stats['TIME_SELECTING_KMERS'].split()[0]),
+        'TIME_SPSS_CONSTRUCTION (sec)': float(stats['TIME_SPSS_CONSTRUCTION'].split()[0]),
+        'SPSS(K)': int(stats['SPSS(K)'].split()[0]),
+        'SPSS(K) count': int(stats['SPSS(K) count'].split()[0]),
+        'TIME_BUILD_FMI (sec)': float(stats['TIME_BUILD_FMI'].split()[0]),
+    }
+
+    fieldnames = list(processed_stats.keys())
+
+    # Écriture dans le fichier CSV
     with open(csv_file_name, mode='a', newline='') as csv_file:
-        fieldnames = ['Dataset', 'TIME_SELECTING_KMERS', 'TIME_SPSS_CONSTRUCTION', 'SPSS(K)', 'SPSS(K) count', 'TIME_BUILD_FMI']
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
 
-        if csv_file.tell() == 0:
+        if csv_file.tell() == 0:  # Si le fichier est vide, écris l'en-tête
             writer.writeheader()
-        writer.writerow(stats)
-    for key, value in stats.items():
-        print(f"{key}: {value}")
+        writer.writerow(processed_stats)
+
+    print(f"Benchmark results saved to {csv_file_name}")
+
+
+
+
 
 
 def test_fm_index(fm_index, spss, filtered_kmers, sample_size=100):
@@ -272,7 +272,6 @@ if __name__ == "__main__":
     output_file = args.o  # Optional - can be passed or left empty
 
     stats = {}
-    print(f"\nProceeding with {os.path.basename(fasta_file)}:")
 
     # Step 1: Count k-mers
     with Timer() as total_time:
@@ -302,10 +301,14 @@ if __name__ == "__main__":
         #exit(1)
 
     # Step 5: Serialize the FM-index
-    dump_file_name = save_fm_index(fm_index, fasta_file, mode, output_file)
+    if output_file and output_file.endswith(".dump"):
+        dump_file_name = save_fm_index(fm_index, fasta_file, mode, k, threshold, output_file=output_file)
+    else:
+        dump_file_name = save_fm_index(fm_index, fasta_file, mode, k, threshold, output_file=None)
+        save_benchmark_results(fasta_file, mode, stats)
 
-    # Optional: Save results for benchmarking
-    save_benchmark_results(fasta_file, mode, stats)
+    for key, value in stats.items():
+        print(f"  {key}: {value}")
     print("-" * 50)  # Prints a line with 50 dashes
 
 
