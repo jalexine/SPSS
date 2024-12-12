@@ -1,0 +1,3 @@
+[submodule "src/pysuffix3"]
+	path = src/pysuffix3
+	url = git@github.com:jalexine/pysuffix3.git
