@@ -1,6 +1,7 @@
 from collections import defaultdict
 from fmi import FmIndex
 import time
+import sys
 from timer import Timer
 import csv
 import argparse
@@ -9,30 +10,65 @@ import pickle
 import os
 
 
+def read_fasta_sequences(fasta_file):
+    """
+    Reads sequences from a FASTA file and concatenates them into a single string.
+    
+    Args:
+        fasta_file (str): Path to the FASTA file.
+    
+    Returns:
+        str: A single string containing all concatenated sequences from the file.
+    """
+    if not os.path.exists(fasta_file):
+        print(f"error : the file '{fasta_file}' doesn't exist.")
+        sys.exit(1)
+    if os.path.getsize(fasta_file) == 0:
+        print(f"error : the file '{fasta_file}' is empty.")
+        sys.exit(1)
+
+    sequence = []
+    with open(fasta_file, "r") as f:
+        for line in f:
+            if not line.startswith(">"):  # Skip headers
+                sequence.append(line.strip())
+
+    return "".join(sequence)
+
+
 def reverse_complement(kmer):
-    complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
-    return "".join(complement[base] for base in reversed(kmer))
+    """
+    Compute the reverse complement of a k-mer using translation tables.
+    """
+    return kmer.translate(str.maketrans("ACGT", "TGCA"))[::-1]
 
 def canonical_kmer(kmer):
     rev_comp = reverse_complement(kmer)
-    return min(kmer, rev_comp)
+    return kmer if kmer <= rev_comp else rev_comp
+
 
 def count_kmers(fasta_file, k):
+    sequence = read_fasta_sequences(fasta_file)
+    rev_sequence = reverse_complement(sequence)
+
     kmer_counts = defaultdict(int)
-    with open(fasta_file, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line.startswith('>'): 
-                for i in range(len(line) - k + 1):
-                    kmer = line[i:i+k]
-                    kmer = canonical_kmer(kmer)  
-                    kmer_counts[kmer] += 1
+    
+    #sliding window
+    for i in range(len(sequence) - k + 1):
+        kmer = sequence[i:i + k]
+        rev_kmer = rev_sequence[-(i + k):-i if i != 0 else None]  
+        canonical = min(kmer, rev_kmer)
+        kmer_counts[canonical] += 1
+
     return kmer_counts
 
 
 def filter_kmers(kmer_counts, threshold):
+    total_kmers = sum(kmer_counts.values())    
+    if threshold > total_kmers:
+        print(f"error : solidity threshold ({threshold}) exceeds the total number of k-mers ({total_kmers}).")
+        sys.exit(1)
     return {kmer for kmer, count in kmer_counts.items() if count >= threshold}
-from collections import defaultdict
 
 def generate_simplitigs(kmers, k):
     """
@@ -256,14 +292,23 @@ def test_fm_index(fm_index, spss, filtered_kmers, sample_size=100):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate and serialize the FM-index of SPSS.")
+
+    parser = argparse.ArgumentParser(
+        description="Generate and serialize the FM-index of SPSS.",
+        usage="python src/sequences_to_indexed_spss.py -i <input.fasta> -k <kmer_size> -t <threshold> [-o <output_file>] [-m {simplitig,unitig}]"
+    )    
     parser.add_argument("-i", required=True, help="Input FASTA file containing genomic sequences.")
     parser.add_argument("-k", type=int, required=True, help="Size of k-mers.")
     parser.add_argument("-t", type=int, required=True, help="Solidity threshold for k-mers.")
     parser.add_argument("-o", required=False, help="Output file for serialized FM-index.")  # Make it optional
-    parser.add_argument("-m", choices=['simplitig', 'unitig'], default='simplitig', help="Mode of spss construction ('simplitig' or 'unitig').")
+    parser.add_argument("-m", choices=['simplitig', 'unitig'], default='simplitig', help="Mode of spss construction ('simplitig' default or 'unitig').")
 
-    args = parser.parse_args()
+    # Capture missing arguments error
+    try:
+        args = parser.parse_args()
+    except SystemExit:
+        print("\n\n \033[95m♡ pls use the -h or --help option for usage details \033[0m")
+        sys.exit(1)
 
     fasta_file = args.i
     k = args.k
