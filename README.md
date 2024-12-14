@@ -42,7 +42,7 @@ To optimize indexing and searching, the project uses a **SPSS (Solid Prefix Sequ
 Before installing and using spss_fmindex_project, ensure the following software and libraries are installed:
 
 - **Python 3.7** or a later version.
-- **Snakemake**: To orchestrate the workflow.
+- **Snakemake**: To reproduce analyses in the scientific report.
 - **pip**: Python package manager.
 - **conda** (optional): For managing virtual environments.
 
@@ -81,7 +81,7 @@ pip install snakemake
 
 ## Usage
 
-spss_fmindex_project provides main scripts for indexing DNA sequences and querying the FM index. It also uses Snakemake to automate and reproduce the analyses presented in the scientific report.
+spss_fmindex_project provides main scripts for indexing DNA sequences and querying the FM index. It also uses Snakemake to reproduce the analyses presented in the scientific report.
 
 ### Important Parameters
 
@@ -166,11 +166,7 @@ spss_fmindex_project generates several types of output files:
 
 ## Reproducing the Study
 
-To reproduce the studies and results presented in the scientific report, follow the steps below using Snakemake.
-
-#### Running the Full Workflow
-
-To run the complete workflow and reproduce the results in the scientific report, use the following command:
+To run the complete workflow to reproduce the results in the scientific report, use the following command:
 
 ### Steps
 
