@@ -83,20 +83,6 @@ pip install snakemake
 
 spss_fmindex_project provides main scripts for indexing DNA sequences and querying the FM index. It also uses Snakemake to automate and reproduce the analyses presented in the scientific report.
 
-### Snakemake
-
-Snakemake orchestrates the different workflow steps, making it easy to reproduce analyses and results.
-
-#### Running the Full Workflow
-
-To run the complete workflow and reproduce the results in the scientific report, use the following command:
-
-```bash
-snakemake --cores all
-```
-
-This command will execute the rules defined in the `Snakefile`, automating indexing, querying, and result generation.
-
 ### Important Parameters
 
 #### 1. `sequences_to_indexed_spss.py`
@@ -162,10 +148,6 @@ spss_fmindex_project primarily accepts the following file format:
 
 - **FASTA**: For genomic and query sequences.
 
-### Handling Multiple Input Files
-
-To index or query multiple FASTA files, combine them into a single file or modify the scripts to accept multiple inputs. Currently, the scripts accept only one FASTA file per parameter.
-
 ## Output
 
 spss_fmindex_project generates several types of output files:
@@ -185,6 +167,10 @@ spss_fmindex_project generates several types of output files:
 ## Reproducing the Study
 
 To reproduce the studies and results presented in the scientific report, follow the steps below using Snakemake.
+
+#### Running the Full Workflow
+
+To run the complete workflow and reproduce the results in the scientific report, use the following command:
 
 ### Steps
 
