@@ -10,32 +10,6 @@ import pickle
 import os
 
 
-def read_fasta_sequences(fasta_file):
-    """
-    Reads sequences from a FASTA file and concatenates them into a single string.
-
-    Args:
-        fasta_file (str): Path to the FASTA file.
-
-    Returns:
-        str: A single string containing all concatenated sequences from the file.
-    """
-    if not os.path.exists(fasta_file):
-        print(f"error : the file '{fasta_file}' doesn't exist.")
-        sys.exit(1)
-    if os.path.getsize(fasta_file) == 0:
-        print(f"error : the file '{fasta_file}' is empty.")
-        sys.exit(1)
-
-    sequence = []
-    with open(fasta_file, "r") as f:
-        for line in f:
-            if not line.startswith(">"):  # Skip headers
-                sequence.append(line.strip())
-
-    return "".join(sequence)
-
-
 def reverse_complement(kmer):
     """
     Compute the reverse complement of a k-mer using translation tables.
@@ -65,28 +39,46 @@ def canonical_kmer(kmer):
 
 def count_kmers(fasta_file, k):
     """
-    Counts all canonical k-mers in the input FASTA file.
+    Counts canonical k-mers directly from a FASTA file, processing sequences in chunks.
 
     Args:
-        fasta_file (str): Path to the input FASTA file containing genomic sequences.
-        k (int): Size of the k-mers to be extracted.
+        fasta_file (str): The path to the FASTA file.
+        k (int): The size of the k-mers.
 
     Returns:
-        defaultdict: A dictionary with canonical k-mers as keys and their counts as values.
+        dict: A dictionary with canonical k-mers as keys and their counts as values.
     """
-    sequence = read_fasta_sequences(fasta_file)
-    rev_sequence = reverse_complement(sequence)
-
     kmer_counts = defaultdict(int)
-    
-    # Sliding window
-    for i in range(len(sequence) - k + 1):
-        kmer = sequence[i:i + k]
-        rev_kmer = rev_sequence[-(i + k):-i if i != 0 else None]  
-        canonical = min(kmer, rev_kmer)
-        kmer_counts[canonical] += 1
+    complement_table = str.maketrans("ACGT", "TGCA")
+
+    with open(fasta_file, "r") as f:
+        current_sequence = []
+
+        for line in f:
+            if line.startswith(">"):  # Header, process accumulated sequence
+                if current_sequence:
+                    sequence = "".join(current_sequence)
+                    for i in range(len(sequence) - k + 1):
+                        kmer = sequence[i:i + k]
+                        rev_kmer = kmer.translate(complement_table)[::-1]
+                        canonical = kmer if kmer <= rev_kmer else rev_kmer
+                        kmer_counts[canonical] += 1
+                    current_sequence = []
+            else:
+                current_sequence.append(line.strip())
+
+        # Process the final sequence
+        if current_sequence:
+            sequence = "".join(current_sequence)
+            for i in range(len(sequence) - k + 1):
+                kmer = sequence[i:i + k]
+                rev_kmer = kmer.translate(complement_table)[::-1]
+                canonical = kmer if kmer <= rev_kmer else rev_kmer
+                kmer_counts[canonical] += 1
 
     return kmer_counts
+
+
 
 
 def filter_kmers(kmer_counts, threshold):
@@ -106,32 +98,46 @@ def filter_kmers(kmer_counts, threshold):
         sys.exit(1)
     return {kmer for kmer, count in kmer_counts.items() if count >= threshold}
 
+def remove_reverse_complements(kmers):
+    """
+    Removes redundant reverse complements by keeping only the canonical k-mers.
+
+    Args:
+        kmers (set): A set of k-mers (strings).
+
+    Returns:
+        set: A cleaned set containing only canonical k-mers.
+    """
+    cleaned_kmers = set() 
+    for kmer in kmers:
+        canonical = canonical_kmer(kmer)  # Canonical k-mer
+        cleaned_kmers.add(canonical)  # add only canonical k-mer
+    return cleaned_kmers
 
 def generate_simplitigs(kmers, k):
     """
     Generates maximal simplitigs from a set of solid k-mers.
 
     Args:
-        kmers (set): The set of solid k-mers.
+        kmers (set): A set of solid k-mers.
         k (int): The size of the k-mers.
 
     Returns:
         list: A list of maximal simplitigs.
     """
-    maximal_simplitigs = []
-    visited_kmers = set()
+    maximal_simplitigs = [] 
 
     def extend_simplitig(K, simplitig, direction):
         """
-        Extends a simplitig in the specified direction (forwards or backwards).
+        Extends a simplitig in a given direction (forward or backward).
 
         Args:
             K (set): The set of remaining k-mers.
             simplitig (str): The current simplitig.
-            direction (str): The direction to extend ('forwards' or 'backwards').
+            direction (str): Direction of extension ('forwards' or 'backwards').
 
         Returns:
-            tuple: Updated (K, simplitig).
+            tuple: Updated set of k-mers and the extended simplitig.
         """
         extending = True
         while extending:
@@ -142,28 +148,32 @@ def generate_simplitigs(kmers, k):
             elif direction == 'backwards':
                 q = simplitig[:k - 1]  # Get the first k-1 bases
                 extend_kmer_func = lambda x: x + q
-            
+
             # Try extending with each possible base ('A', 'C', 'G', 'T')
             for x in ['A', 'C', 'G', 'T']:
                 kmer = extend_kmer_func(x)
-                if kmer in K:
+                canonical_kmer_form = canonical_kmer(kmer)
+                if canonical_kmer_form in K:
                     extending = True
                     simplitig = simplitig + x if direction == 'forwards' else x + simplitig
-                    K.remove(kmer)
+                    K.remove(canonical_kmer_form)  # remove canonical kmer
                     break
         return K, simplitig
 
+    kmers = remove_reverse_complements(kmers)
+
     # Iterate through the k-mers and generate simplitigs
     while len(kmers) > 0:
-        seed_kmer = next(iter(kmers))  # Pick a k-mer to seed the simplitig
+        seed_kmer = random.choice(list(kmers)) # Pick a k-mer to seed the simplitig
         kmers.remove(seed_kmer)  # Remove the seed k-mer from the set
 
         # Initialize the simplitig with the seed k-mer
         simplitig = seed_kmer
         kmers, simplitig = extend_simplitig(kmers, simplitig, 'backwards')  # Extend backwards
+
         kmers, simplitig = extend_simplitig(kmers, simplitig, 'forwards')  # Extend forwards
 
-        maximal_simplitigs.append(simplitig)
+        maximal_simplitigs.append(simplitig)  
 
     return maximal_simplitigs
 
