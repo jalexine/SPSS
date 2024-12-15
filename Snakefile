@@ -14,8 +14,12 @@ rule all:
                dataset=FASTA_FILES, mode=MODES),
         expand("benchmark/res_query/{dataset}/query_{mode}_k{k}_t{t}.tsv",
                dataset=FASTA_FILES, mode=MODES, k=K_VALUES, t=T_VALUES),
-        "benchmark/plots/spss_reads_05x.png",
-        "benchmark/plots/threshold_reads_80x.png"
+        expand("benchmark/plots/spss_{mode}.png", mode=MODES),
+        expand("benchmark/plots/threshold_05x_{mode}.png", mode=MODES),
+        expand("benchmark/plots/threshold_30xs_{mode}.png", mode=MODES)
+
+
+
 
 
 
@@ -28,7 +32,7 @@ rule generate_dump:
         """
         mkdir -p $(dirname {output})
         python src/sequences_to_indexed_spss.py -i {input.fasta} -k {wildcards.k} -t {wildcards.t} -m {wildcards.mode} \
-            -q {output}
+            -o {output}
         """
 rule generate_stats:
     input:
@@ -81,24 +85,36 @@ rule query_fmi:
 
 rule plot_spss:
     input:
-        unitig="benchmark/stats/stats_{dataset}_unitig.csv",
-        simplitig="benchmark/stats/stats_{dataset}_simplitig.csv"
+        small ="benchmark/stats/stats_reads_05x_{mode}.csv",
+        big ="benchmark/stats/stats_reads_80x_{mode}.csv"
     output:
-        "benchmark/plots/spss_{dataset}.png"
+        "benchmark/plots/spss_{mode}.png"
     shell:
         """
         mkdir -p benchmark/plots
-        python benchmark/scripts/plot_spss.py {input.unitig} {input.simplitig} {output}
+        python benchmark/scripts/plot_spss.py {input.small} {input.big} {output}
         """
 
 
-rule plot_threshold:
+rule plot_threshold_05x:
     input:
-        simplitig="benchmark/stats/stats_{dataset}_simplitig.csv"
+        data ="benchmark/stats/stats_reads_05x_{mode}.csv",
     output:
-        "benchmark/plots/threshold_{dataset}.png"
+        "benchmark/plots/threshold_05x_{mode}.png"
     shell:
         """
         mkdir -p benchmark/plots
-        python benchmark/scripts/plot_threshold.py {input.simplitig} {output}
+        python benchmark/scripts/plot_threshold_05x.py {input.data} {output}
+        """
+
+rule plot_threshold_30x:
+    input:
+        data ="benchmark/stats/stats_reads_30x_{mode}.csv",
+        datapoly ="benchmark/stats/stats_reads_30x_poly_{mode}.csv"
+    output:
+        "benchmark/plots/threshold_30xs_{mode}.png"
+    shell:
+        """
+        mkdir -p benchmark/plots
+        python benchmark/scripts/plot_threshold_30x.py {input.data} {input.datapoly} {output}
         """
