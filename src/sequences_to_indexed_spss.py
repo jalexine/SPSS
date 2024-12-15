@@ -290,6 +290,10 @@ def save_fm_index(fm_index, fasta_file, mode, k, t, output_file=None):
     if not output_file or os.path.isdir(output_file):
         output_file = prepare_output_dir(base_name, mode, k, t, extension="dump")
 
+    parent_dir = os.path.dirname(output_file)
+    if not os.path.exists(parent_dir):
+        os.makedirs(parent_dir)
+
     try:
         with open(output_file, 'wb') as f:
             pickle.dump(fm_index, f)
@@ -300,7 +304,7 @@ def save_fm_index(fm_index, fasta_file, mode, k, t, output_file=None):
     return output_file
 
 
-def save_benchmark_results(fasta_file, mode, stats):
+def save_benchmark_results(fasta_file, mode, stats, k, threshold):
     """
     Saves benchmark results to a CSV file in the stats directory and prints them in their original format.
 
@@ -308,6 +312,8 @@ def save_benchmark_results(fasta_file, mode, stats):
         fasta_file (str): The input FASTA file.
         mode (str): The mode used for SPSS construction ('simplitig' or 'unitig').
         stats (dict): A dictionary containing benchmarking statistics.
+        k (int): The size of the k-mers.
+        threshold (int): The solidity threshold for k-mers.
 
     Returns:
         None
@@ -321,9 +327,10 @@ def save_benchmark_results(fasta_file, mode, stats):
     # CSV file name based only on the mode and dataset
     csv_file_name = os.path.join(parent_dir, f"stats_{base_name}_{mode}.csv")
 
+    # Prepare the processed stats
     processed_stats = {
         'Dataset': base_name,
-        'k': k, 
+        'k': k,
         't': threshold,
         'TIME_SELECTING_KMERS (sec)': float(stats['TIME_SELECTING_KMERS'].split()[0]),
         'TIME_SPSS_CONSTRUCTION (sec)': float(stats['TIME_SPSS_CONSTRUCTION'].split()[0]),
@@ -338,11 +345,14 @@ def save_benchmark_results(fasta_file, mode, stats):
     with open(csv_file_name, mode='a', newline='') as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
 
-        if csv_file.tell() == 0:  # If the file is empty, write the header
+        # If the file is empty, write the header
+        if csv_file.tell() == 0:
             writer.writeheader()
         writer.writerow(processed_stats)
 
     print(f"Benchmark results saved to {csv_file_name}")
+
+
 
 
 def test_fm_index(fm_index, spss, filtered_kmers, sample_size=100):
@@ -375,19 +385,20 @@ def test_fm_index(fm_index, spss, filtered_kmers, sample_size=100):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate and serialize the FM-index of SPSS.",
-        usage="python src/sequences_to_indexed_spss.py -i <input.fasta> -k <kmer_size> -t <threshold> [-o <output_file>] [-m {simplitig,unitig}]"
+        usage="python src/sequences_to_indexed_spss.py -i <input.fasta> -k <kmer_size> -t <threshold> [-q <output_file>] [-m {simplitig,unitig}]"
     )    
     parser.add_argument("-i", required=True, help="Input FASTA file containing genomic sequences.")
     parser.add_argument("-k", type=int, required=True, help="Size of k-mers.")
     parser.add_argument("-t", type=int, required=True, help="Solidity threshold for k-mers.")
-    parser.add_argument("-o", required=False, help="Output file for serialized FM-index.")  # Make it optional
+    parser.add_argument("-o", required=False, help="Output file for serialized FM-index.") 
+    parser.add_argument("-stats", required=False, help="Output file for benchmark stats (optional).")  
     parser.add_argument("-m", choices=['simplitig', 'unitig'], default='simplitig', help="Mode of SPSS construction ('simplitig' default or 'unitig').")
 
     # Capture missing arguments error
     try:
         args = parser.parse_args()
     except SystemExit:
-        print("\n\n \033[95m♡ Please use the -h or --help option for usage details \033[0m")
+        print("\n\n \033[95m♡ pls use the -h or --help option for usage details \033[0m")
         sys.exit(1)
 
     fasta_file = args.i
@@ -395,6 +406,7 @@ if __name__ == "__main__":
     threshold = args.t
     mode = args.m
     output_file = args.o  # Optional - can be passed or left empty
+    stats_file = args.stats  #  .csv optionnal
 
     stats = {}
 
@@ -425,13 +437,21 @@ if __name__ == "__main__":
         # print("Oh no! FM-index validation failed.")
         # exit(1)
 
-    # Step 5: Serialize the FM-index
-    if output_file and output_file.endswith(".dump"):
-        dump_file_name = save_fm_index(fm_index, fasta_file, mode, k, threshold, output_file=output_file)
+    # Step 5: Save the FM-index if specified
+    if output_file:
+        save_fm_index(fm_index, fasta_file, mode, k, threshold, output_file=output_file)
     else:
-        dump_file_name = save_fm_index(fm_index, fasta_file, mode, k, threshold, output_file=None)
-        save_benchmark_results(fasta_file, mode, stats)
+        print("FM-index not saved because -q was not specified.")
 
+    # Step 6: Save benchmark stats if specified
+    if stats_file:
+        save_benchmark_results(fasta_file, mode, stats, k, threshold)
+    else:
+        print("Benchmark stats not saved because -stats was not specified.")
+
+
+    # Print stats summary to console
+    print("\nBenchmark Summary:")
     for key, value in stats.items():
         print(f"  {key}: {value}")
-    print("-" * 50)  # Prints a line with 50 dashes
+    print("-" * 50)
