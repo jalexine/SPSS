@@ -8,7 +8,7 @@
 - [Usage](#usage)
 - [Input Formats](#input-formats)
 - [Output](#output)
-- [Reproducing the Study](#reproducing-the-study)
+- [Benchmark](#benchmark)
 - [Contributions](#contributions)
 - [Licence](#licence)
 
