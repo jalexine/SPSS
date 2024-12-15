@@ -1,4 +1,4 @@
-# spss_fmindex_project
+# spss_exploration_project
 
 [Badges]
 - [Project Title & Overview](#project-title--overview)
@@ -8,17 +8,17 @@
 - [Usage](#usage)
 - [Input Formats](#input-formats)
 - [Output](#output)
-- [Benchmark](#benchmark)
+- [Reproducing Results](#reproducing-results)
 - [Contributions](#contributions)
-- [Licence](#licence)
+
 
 ## Project Title & Overview
 
-The **spss_fmindex_project** aims to represent and index a DNA sequencing file to quickly compare query sequences with this set of sequences. The comparison is performed without alignment and consists of counting the number of shared *k*-mers between the query sequence and the sequences in the sequencing file.
+The **spss_exploration_project** aims to represent and index a DNA sequencing file to quickly compare query sequences with this set of sequences. The comparison is performed without alignment and consists of counting the number of shared *k*-mers between the query sequence and the sequences in the sequencing file.
 
 To optimize indexing and searching, the project uses a **SPSS (Solid Prefix Sequence Set)**. The SPSS is an optimized data structure that groups continuous sequences (simplitigs or unitigs) derived from solid *k*-mers extracted from genomic sequences. This approach reduces redundancy and improves indexing efficiency by minimizing data size while retaining essential information for queries.
 
-## Repository Content
+## Main Repository Content
 
 - **Main Scripts**:
   - `sequences_to_indexed_spss.py`: Script for sequence indexing.
@@ -52,8 +52,8 @@ Before installing and using spss_fmindex_project, ensure the following software 
 Clone the spss_fmindex_project GitHub repository and access the project directory.
 
 ```bash
-git clone https://github.com/jalexine/spss_fmindex_project.git
-cd spss_fmindex_project
+git clone https://github.com/jalexine/spss_exploration_project.git
+cd spss_exploration_project
 ```
 
 ### Environment and Dependencies
@@ -100,6 +100,10 @@ spss_fmindex_project provides main scripts for indexing DNA sequences and queryi
 
 - `-m` **(Optional)**:  
   SPSS construction mode. Can be `simplitig` (default) or `unitig`.
+  
+- `-stats` **(Optional)**:
+  CSV file containing SPSS metrics.
+
 
 #### 2. `query_indexed_spss.py`
 
@@ -143,13 +147,13 @@ cat res_query.txt
 
 ## Input Formats
 
-spss_fmindex_project primarily accepts the following file format:
+spss_exploration_project primarily accepts the following file format:
 
 - **FASTA**: For genomic and query sequences.
 
 ## Output
 
-spss_fmindex_project generates several types of output files:
+spss_exploration_project generates several types of output files:
 
 - **Serialized FM Index** (`.dump`):  
   Contains the FM index generated from the genomic sequences.
@@ -163,28 +167,47 @@ spss_fmindex_project generates several types of output files:
 - **Benchmarking Results**:  
   Stored in the `benchmark/stats` directory, allowing performance optimization.
 
-## Benchmark
+
+## Reproducing Results
 
 To run the complete workflow to reproduce the results in the scientific report, use the following command:
+
+
+
+### Requirements
+
+Before starting, ensure your environment is properly configured. You will need:
+
+- **Python** (version 3.6 or higher)  
+- **Conda** or a virtual environment to manage dependencies  
+
+To install **Snakemake**, run the following command:  
+
+```bash
+conda install -c bioconda -c conda-forge snakemake
+```
+
+
 
 ### Steps
 
 1. **Configure Input Files**:  
-   Place your input FASTA files in the appropriate directory.
+   Unzip the file "fastafiles.zip" in  `test-data/` .
+      > **Note**: If you want to use your proper fasta files, you need to place them in `teest-data/` and change the name of dataset in the `congif.yaml`. maybe change the rules relatives to the plots. in the same yaml you can change the size of k and t.
 
-2. **Run the Snakemake Workflow**:
+
+3. **Run the Snakemake Workflow**:
 
 ```bash
-    snakemake --cores all
+    snakemake --cores 4
 ```
+   > **Note**: You can choose the number of cores to allocate based on your system's resources. Adjust `--cores` to fit your machine's capabilities (e.g., `--cores 8` for a more powerful system).
+
 
 3. **Verify Results**:  
-   The results and analyses will be generated according to the rules defined in the `Snakefile`.
+   The results and analyses will be generated according to the rules defined in the `Snakefile`. Mainly in the `benchmark/` .
 
 ## Contributions
 
-The project was developed in pairs.
+The project was developed in pairs by Alexine and Julie. <3
 
-## Licence
-
-This project is intended for academic use. For licensing or code reuse inquiries, please contact the supervisors claire.lemaitre@inria.fr and pierre.peterlongo@inria.fr.
