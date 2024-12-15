@@ -1,0 +1,20 @@
+fasta_files:
+  - reads_05x
+  - reads_30x
+  - reads_30x_poly
+  - reads_80x
+
+k:
+  - 21
+  - 31
+  - 41
+  - 51
+  - 61
+  - 71
+
+t:
+  - 2
+  - 3
+  - 4
+  - 5
+
