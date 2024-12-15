@@ -178,54 +178,72 @@ def generate_simplitigs(kmers, k):
     return maximal_simplitigs
 
 
-def generate_unitigs(kmers):
+def generate_unitigs(kmers, k):
     """
-    Generates unitigs from a set of k-mers.
-
-    A unitig is a maximal sequence formed by traversing the k-mer graph, 
-    where each prefix leads to exactly one suffix and the path is extended 
-    while there is only one valid neighbor.
+    Generates unitigs dynamically by traversing the graph.
 
     Args:
-        kmers (set): The set of k-mers.
+        kmers (set): A set of solid k-mers.
+        k (int): The size of the k-mers.
 
     Returns:
         list: A list of unitigs.
     """
-    graph = defaultdict(list)
-    for kmer in kmers:
-        prefix = kmer[:-1]  # Prefix of the k-mer (first k-1 bases)
-        suffix = kmer[1:]   # Suffix of the k-mer (last k-1 bases)
-        graph[prefix].append(suffix)
+    visited_kmers = set()  
+    unitigs = []  
 
-    unitigs = []
-    visited_edges = set()
+    def extend_unitig(current_kmer, direction):
+        """
+        Extends a unitig in a given direction.
 
-    # Traverse the graph to find unitigs
-    for node in graph:
-        for neighbor in graph[node]:
-            edge = (node, neighbor)
-            if edge in visited_edges:
-                continue
+        Args:
+            current_kmer (str): The current k-mer.
+            direction (str): The direction of extension ('forward' or 'backward').
 
-            visited_edges.add(edge)
-            unitig = [node, neighbor]
-
-            # Extend the unitig while there is exactly one valid neighbor
-            current = neighbor
-            while current in graph and len(graph[current]) == 1:
-                next_node = graph[current][0]
-                next_edge = (current, next_node)
-                if next_edge in visited_edges:
+        Returns:
+            str: The extended unitig.
+        """
+        unitig = current_kmer
+        while True:
+            if direction == 'forward':
+                suffix = unitig[-(k - 1):]  
+                next_kmer = None
+                for base in 'ACGT':
+                    candidate_kmer = suffix + base
+                    if candidate_kmer in kmers and candidate_kmer not in visited_kmers:
+                        next_kmer = candidate_kmer
+                        break
+                if next_kmer:
+                    visited_kmers.add(next_kmer)
+                    unitig += next_kmer[-1]  
+                else:
                     break
-                visited_edges.add(next_edge)
-                unitig.append(next_node)
-                current = next_node
+            elif direction == 'backward':
+                prefix = unitig[:k - 1]  
+                next_kmer = None
+                for base in 'ACGT':
+                    candidate_kmer = base + prefix
+                    if candidate_kmer in kmers and candidate_kmer not in visited_kmers:
+                        next_kmer = candidate_kmer
+                        break
+                if next_kmer:
+                    visited_kmers.add(next_kmer)
+                    unitig = next_kmer[0] + unitig  
+                else:
+                    break
+        return unitig
 
-            # Join unitig and add to list
-            unitigs.append(''.join([unitig[0]] + [u[-1] for u in unitig[1:]]))
+    # Iterate through the k-mers and generate unitigs
+    for kmer in kmers:
+        if kmer not in visited_kmers:
+            visited_kmers.add(kmer)
+            # Extend in both directions
+            unitig = extend_unitig(kmer, 'backward')
+            unitig = extend_unitig(unitig, 'forward')
+            unitigs.append(unitig)
 
     return unitigs
+
 
 
 def generate_spss(kmers, k, mode='simplitig'):
@@ -243,7 +261,7 @@ def generate_spss(kmers, k, mode='simplitig'):
     if mode == 'simplitig':
         simplitigs = generate_simplitigs(kmers, k)
     elif mode == 'unitig':
-        simplitigs = generate_unitigs(kmers)
+        simplitigs = generate_unitigs(kmers,k)
     return "#".join(simplitigs) + "$"
 
 
@@ -327,7 +345,7 @@ def save_benchmark_results(fasta_file, mode, stats, k, threshold):
     # CSV file name based only on the mode and dataset
     csv_file_name = os.path.join(parent_dir, f"stats_{base_name}_{mode}.csv")
 
-    # Prepare the processed stats
+    # Prepare the processed stat
     processed_stats = {
         'Dataset': base_name,
         'k': k,
