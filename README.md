@@ -184,7 +184,7 @@ To run the complete workflow to reproduce the results in the scientific report, 
 
 ## Contributions
 
-The project was developed in pairs. For any questions, contact ? and juliebuset@outlook.fr.
+The project was developed in pairs.
 
 ## Licence
 
