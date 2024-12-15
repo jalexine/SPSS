@@ -42,7 +42,6 @@ To optimize indexing and searching, the project uses a **SPSS (Solid Prefix Sequ
 Before installing and using spss_fmindex_project, ensure the following software and libraries are installed:
 
 - **Python 3.7** or a later version.
-- **Snakemake**: To reproduce analyses in the scientific report.
 - **pip**: Python package manager.
 - **conda** (optional): For managing virtual environments.
 
@@ -164,7 +163,7 @@ spss_fmindex_project generates several types of output files:
 - **Benchmarking Results**:  
   Stored in the `benchmark/stats` directory, allowing performance optimization.
 
-## Reproducing the Study
+## Benchmark
 
 To run the complete workflow to reproduce the results in the scientific report, use the following command:
 
