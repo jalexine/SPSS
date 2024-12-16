@@ -160,7 +160,8 @@ def generate_simplitigs(kmers, k):
 
 def generate_unitigs(kmers, k):
     """
-    Generates unitigs dynamically by traversing the graph.
+    Generates unitigs dynamically by traversing the graph represented by a set of solid k-mers.
+    A unitig is a maximal non-branching path in the k-mer graph.
 
     Args:
         kmers (set): A set of solid k-mers.
@@ -174,52 +175,66 @@ def generate_unitigs(kmers, k):
 
     def extend_unitig(current_kmer, direction):
         """
-        Extends a unitig in a given direction.
+        Extends a unitig in a given direction ('forward' or 'backward') by following unique paths.
+        This process continues until no further k-mers can be appended without branching.
 
         Args:
-            current_kmer (str): The current k-mer.
-            direction (str): direction of extension ('forward' or 'backward')
+            current_kmer (str): The current k-mer forming the end of the unitig.
+            direction (str): 'forward' to extend the unitig towards the 3'-end,
+                             'backward' to extend towards the 5'-end.
 
         Returns:
-            str: The extended unitig.
+            str: The extended unitig after no more unique paths are found.
         """
         unitig = current_kmer
         while True:
             if direction == 'forward':
+                # In forward extension, consider the suffix of length (k-1)
+                # and try to find a unique next k-mer by adding one nucleotide.
                 suffix = unitig[-(k - 1):]
                 next_kmer = None
                 for base in 'ACGT':
                     candidate_kmer = suffix + base
+                    # If candidate is a valid, unvisited k-mer, select it and break
                     if candidate_kmer in kmers and candidate_kmer not in visited_kmers:
                         next_kmer = candidate_kmer
                         break
                 if next_kmer:
                     visited_kmers.add(next_kmer)
+                    # Append the last character of the chosen k-mer to extend the unitig
                     unitig += next_kmer[-1]
                 else:
+                    # No further extension possible
                     break
             elif direction == 'backward':
+                # In backward extension, consider the prefix of length (k-1)
+                # and prepend a nucleotide to find a unique predecessor k-mer.
                 prefix = unitig[:k - 1]
                 next_kmer = None
                 for base in 'ACGT':
                     candidate_kmer = base + prefix
+                    # If candidate is a valid, unvisited k-mer, select it and break
                     if candidate_kmer in kmers and candidate_kmer not in visited_kmers:
                         next_kmer = candidate_kmer
                         break
                 if next_kmer:
                     visited_kmers.add(next_kmer)
+                    # Prepend the first character of the chosen k-mer to extend the unitig
                     unitig = next_kmer[0] + unitig
                 else:
+                    # No further extension possible
                     break
         return unitig
 
-    # Iterate through the k-mers and generate unitigs
+    # Iterate over all k-mers and form unitigs from those not yet visited.
     for kmer in kmers:
         if kmer not in visited_kmers:
             visited_kmers.add(kmer)
-            # Extend in both directions
+            # Extend the unitig in the backward direction first
             unitig = extend_unitig(kmer, 'backward')
+            # Then extend the resulting unitig forward
             unitig = extend_unitig(unitig, 'forward')
+            # The final unitig is maximal and non-branching
             unitigs.append(unitig)
 
     return unitigs
