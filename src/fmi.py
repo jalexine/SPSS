@@ -14,7 +14,6 @@ from pysuffix3 import tools_karkkainen_sanders as tks
 def load_fm_index(filename):
     """
     Load an FM-index object from a given file.
-
     This function deserializes and returns a precomputed FM-index from the specified file.
 
     Parameters:
@@ -23,6 +22,7 @@ def load_fm_index(filename):
     Returns:
         FmIndex: The deserialized FM-index instance loaded from the file.
     """
+    # Open the file in binary read mode and load the FM-index object using pickle
     with open(filename, 'rb') as f:
         fm_index = pickle.load(f)
     return fm_index
@@ -30,7 +30,6 @@ def load_fm_index(filename):
 class FmIndex:
     """
     A class for constructing and querying an FM-index of a given sequence.
-
     The FM-index allows efficient substring queries (contains) on the indexed sequence.
     """
 
@@ -44,9 +43,12 @@ class FmIndex:
         Returns:
             None
         """
+        # Generate the suffix array using the Karkkainen-Sanders algorithm
         self.suffix_array = tks.simple_kark_sort(sequence)
         self.sequence = sequence
+        # Compute the Burrows-Wheeler Transform (BWT) for the sequence
         self.bwt = self.set_bwt()
+        # Compute the necessary mapping and rank arrays for the FM-index
         self.n, self.rank = self.set_n_and_ranks()
 
     def save(self, filename):
@@ -59,6 +61,7 @@ class FmIndex:
         Returns:
             None
         """
+        # Open the file in binary write mode and serialize the current FM-index object
         with open(filename, 'wb') as f:
             pickle.dump(self, f)
 
@@ -66,7 +69,8 @@ class FmIndex:
         """
         Compute the Burrows–Wheeler Transform (BWT) of the indexed sequence.
 
-        The BWT is derived using the suffix array, taking the character preceding each suffix.
+        The BWT is derived using the suffix array, 
+        taking the character preceding each suffix.
 
         Parameters:
             None
@@ -74,6 +78,7 @@ class FmIndex:
         Returns:
             str: The BWT string of the indexed sequence.
         """
+        # Build the BWT by iterating over the suffix array and getting the preceding character
         bwt = "".join(self.sequence[i - 1] if i > 0 else self.sequence[-1] for i in self.suffix_array)
         return bwt
 
@@ -92,16 +97,25 @@ class FmIndex:
                 dict: A dictionary `n` where n[char] gives the starting index of char in the sorted BWT.
                 dict: A dictionary `rank` where rank[char] is a list of cumulative counts of char up to each position.
         """
-        n, rank = {}, {}
-        for char in set(self.bwt):
-            # Position of char in the sorted BWT (number of chars before char in sorted order)
-            n[char] = len(''.join(sorted(self.bwt)).split(char)[0])
-            rank[char] = [0] * (len(self.bwt) + 1)
+        n = {}
+        rank = {}
+        cumulative_count = {}
+        # Sort the BWT string and prepare for ranking
 
-        # Build cumulative ranks
+        sorted_bwt = sorted(self.bwt)
+        # For each character in the BWT, initialize the rank and n values
+        for char in set(self.bwt):
+            n[char] = 0
+            rank[char] = [0] * (len(self.bwt) + 1)  # rank will store cumulative counts
+            cumulative_count[char] = 0
+        # Update 'n' and 'rank' based on the BWT
         for i, char in enumerate(self.bwt):
+            if cumulative_count[char] == 0:
+                n[char] = sorted_bwt.index(char)
+        # Increment the occurrence count of char
+            cumulative_count[char] += 1
             for c in rank:
-                rank[c][i + 1] = rank[c][i] + (1 if c == char else 0)
+                rank[c][i + 1] = cumulative_count[c]
         return n, rank
 
     def lf(self, alpha, k):
@@ -118,6 +132,7 @@ class FmIndex:
         Returns:
             int: The LF-mapped index in the suffix array for the given character occurrence.
         """
+        # Find the LF-mapped index using the starting position 'n' and the occurrence 'k'
         lf_index = self.n[alpha] + k - 1
         return lf_index
 
@@ -132,9 +147,10 @@ class FmIndex:
         Returns:
             int: The index of the next occurrence of alpha at or after l, or -1 if not found.
         """
+        # Iterate through the BWT starting from index 'l' to find the next occurrence of 'alpha'
         for i in range(l, len(self.bwt)):
             if self.bwt[i] == alpha:
-                return i
+                return i # Return the index of the next occurrence of 'alpha'
         return -1
 
     def find_prev(self, alpha, l):
@@ -148,9 +164,10 @@ class FmIndex:
         Returns:
             int: The index of the occurrence of alpha at or before l, or -1 if not found.
         """
+    # Search backwards in the BWT for the character 'alpha'
         for i in range(l, -1, -1):
             if self.bwt[i] == alpha:
-                return i
+                return i # Return index if 'alpha' is found
         return -1
     
     def occ(self, n, i):
@@ -164,9 +181,10 @@ class FmIndex:
         Returns:
             int: The number of times character n appears in self.bwt up to index i.
         """
+        
         if n not in self.rank:
-            return 0
-        return self.rank[n][i + 1]
+            return 0 # Return 0 if the character 'n' is not found in the rank
+        return self.rank[n][i + 1] # Return the cumulative count for character 'n' 
 
     def contains(self, q):
         """
@@ -180,12 +198,18 @@ class FmIndex:
         Returns:
             bool: True if q is found in the indexed sequence, False otherwise.
         """
+        # Initialize the search range for the BWT
         l, r = 0, len(self.bwt) - 1
+        # Process the query in reverse order
         for char in reversed(q):
+            # If the character is not in the FM-index, return False
             if char not in self.n:
                 return False
+            # Update the lower bound of the range based on the character's occurrence
             l = self.n[char] + (self.occ(char, l - 1) if l > 0 else 0)
+            # Update the upper bound of the range based on the character's occurrence
             r = self.n[char] + self.occ(char, r) - 1
+            # If the lower bound exceeds the upper bound = substring not found
             if l > r:
                 return False
         return l <= r
