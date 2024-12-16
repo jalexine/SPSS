@@ -16,7 +16,7 @@
 
 The **spss_exploration_project** aims to represent and index a DNA sequencing file to quickly compare query sequences with this set of sequences. The comparison is performed without alignment and consists of counting the number of shared *k*-mers between the query sequence and the sequences in the sequencing file.
 
-To optimize indexing and searching, the project uses a **SPSS (Solid Prefix Sequence Set)**. The SPSS is an optimized data structure that groups continuous sequences (simplitigs or unitigs) derived from solid *k*-mers extracted from genomic sequences. This approach reduces redundancy and improves indexing efficiency by minimizing data size while retaining essential information for queries.
+To optimize indexing and searching, the project uses a **SPSS (Spectrum-Preserving String Set)**. The SPSS is an optimized data structure that groups continuous sequences (simplitigs or unitigs) derived from solid *k*-mers extracted from genomic sequences. This approach reduces redundancy and improves indexing efficiency by minimizing data size while retaining essential information for queries.
 
 ## Main Repository Content
 
