@@ -44,8 +44,14 @@ def count_kmers(fasta_file, k):
     kmer_counts = defaultdict(int)
     # faster to use str.maketrans than creating a fonction
     complement_table = str.maketrans("ACGT", "TGCA")
-
+    # Add exception handling
     with open(fasta_file, "r") as f:
+        # Quick validation: check if the file starts like a FASTA file
+        first_line = f.readline().strip()
+        if not first_line.startswith(">"):
+            print(f"\033[91m error: The file '{fasta_file}' does not appear to be a valid FASTA file.\033[0m")
+            sys.exit(1)
+
         current_sequence = []
 
         for line in f:
@@ -420,7 +426,7 @@ def test_fm_index(fm_index, spss, filtered_kmers, sample_size=100):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate and serialize the FM-index of SPSS.",
-        usage="python src/sequences_to_indexed_spss.py -i <input.fasta> -k <kmer_size> -t <threshold> [-q <output_file>] [-m {simplitig,unitig}]"
+        usage="python src/sequences_to_indexed_spss.py -i <input.fasta> -k <kmer_size> -t <threshold> [-o <output_file>] [-m {simplitig,unitig}]"
     )
     parser.add_argument("-i", required=True, help="Input FASTA file containing genomic sequences.")
     parser.add_argument("-k", type=int, required=True, help="Size of k-mers.")
